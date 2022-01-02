@@ -1,0 +1,6 @@
+build
+release
+.DS_Store
+src/plugin-macros.generated.h
+CI/include/build_environment.sh
+bundle/installer-macOS.generated.pkgproj

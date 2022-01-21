@@ -16,77 +16,29 @@ You should have received a copy of the GNU General Public License along
 with this program. If not, see <https://www.gnu.org/licenses/>
 */
 
-
 #include "properties-dock.hpp"
 
-#include <obs-module.h>
-
-#include <QMainWindow>
-#include <QVBoxLayout>
-#include <QComboBox>
-#include "obs-classes-helper-functions.hpp"
-
-static void frontendEvent(enum obs_frontend_event event, void *data)
+/* Stolen straight from obs-websocket */
+template<typename T>
+T *calldata_get_pointer(const calldata_t *data, const char *name)
 {
-	if (event != OBS_FRONTEND_EVENT_PREVIEW_SCENE_CHANGED)
-		return;
-
-	PropertiesDock *dock = static_cast<PropertiesDock *>(data);
-	dock->RefreshSources();
-	dock->RefreshPropertiesView();
-	dock->Refresh();
+	void *ptr = nullptr;
+	calldata_get_ptr(data, name, &ptr);
+	return reinterpret_cast<T *>(ptr);
 }
 
-void PropertiesDock::RefreshSources()
+void PropertiesDock::SceneItemSelectSignal(void *param, calldata_t *data)
 {
-	std::vector<OBSSceneItem> items;
-	/* Generate sources list */
-	{
-		OBSSourceAutoRelease scene =
-			obs_frontend_preview_program_mode_active()
-				? obs_frontend_get_current_preview_scene()
-				: obs_frontend_get_current_scene();
-		auto cb = [](obs_scene_t *, obs_sceneitem_t *item, void *data) {
-			std::vector<OBSSceneItem> *items =
-				static_cast<std::vector<OBSSceneItem> *>(data);
-			items->push_back(item);
-			return true;
-		};
-		obs_scene_enum_items(obs_scene_from_source(scene), cb, &items);
-		std::reverse(items.begin(), items.end());
-	}
-	/* Generate combobox */
-	{
-		if (combobox)
-			combobox = nullptr;
+	PropertiesDock *dock = static_cast<PropertiesDock *>(param);
 
-		combobox = new QComboBox();
-		combobox->setEditable(false);
-		for (OBSSceneItem item : items) {
-			QVariant v;
-			v.setValue((void *)item);
-			combobox->addItem(
-				obs_source_get_name(
-					obs_sceneitem_get_source(item)),
-				v);
-		}
-		connect(combobox,
-			QOverload<int>::of(&QComboBox::currentIndexChanged),
-			[&](int) {
-				RefreshPropertiesView();
-				Refresh();
-			});
-	}
-}
+	pthread_mutex_lock(&dock->mutex);
 
-void PropertiesDock::RefreshPropertiesView()
-{
+	dock->selectedItemsCount++;
 
-	OBSSceneItem item =
-		(obs_sceneitem_t *)combobox->currentData().value<void *>();
-	OBSSource source = obs_sceneitem_get_source(item);
+	OBSSource itemSource = obs_sceneitem_get_source(
+		calldata_get_pointer<obs_sceneitem_t>(data, "item"));
 
-	OBSDataAutoRelease settings = obs_source_get_settings(source);
+	OBSDataAutoRelease settings = obs_source_get_settings(itemSource);
 
 	auto updateCb = [](void *obj, obs_data_t *old_settings,
 			   obs_data_t *new_settings) {
@@ -100,18 +52,86 @@ void PropertiesDock::RefreshPropertiesView()
 		obs_source_update(source, settings);
 	};
 
-	if (propertiesView)
-		propertiesView = nullptr;
+	if (dock->propertiesView)
+		dock->propertiesView = nullptr;
 
-	propertiesView = new OBSPropertiesView(
-		settings.Get(), source,
+	dock->propertiesView = new OBSPropertiesView(
+		settings.Get(), itemSource,
 		(PropertiesReloadCallback)obs_source_properties,
 		(PropertiesUpdateCallback)updateCb,
 		(PropertiesVisualUpdateCb)updateCbWithoutUndo);
+
+	dock->Refresh();
+
+	pthread_mutex_unlock(&dock->mutex);
+}
+
+void PropertiesDock::SceneItemDeselectSignal(void *param, calldata_t *)
+{
+	PropertiesDock *dock = static_cast<PropertiesDock *>(param);
+	pthread_mutex_lock(&dock->mutex);
+
+	dock->selectedItemsCount--;
+	if (dock->propertiesView && dock->selectedItemsCount == 0)
+		dock->propertiesView = nullptr;
+
+	dock->Refresh();
+	pthread_mutex_unlock(&dock->mutex);
+}
+
+void PropertiesDock::FrontendEvent(enum obs_frontend_event event, void *data)
+{
+	if (event != OBS_FRONTEND_EVENT_PREVIEW_SCENE_CHANGED)
+		return;
+
+	PropertiesDock *dock = static_cast<PropertiesDock *>(data);
+	pthread_mutex_lock(&dock->mutex);
+
+	OBSSourceAutoRelease currentScene =
+		obs_frontend_preview_program_mode_active()
+			? obs_frontend_get_current_preview_scene()
+			: obs_frontend_get_current_scene();
+
+	/* Remove signal from old source */
+	if (dock->currentScene &&
+	    !obs_weak_source_expired(dock->currentScene)) {
+		OBSSourceAutoRelease oldScene =
+			obs_weak_source_get_source(dock->currentScene);
+		signal_handler_t *sh = obs_source_get_signal_handler(oldScene);
+		signal_handler_disconnect(sh, "item_select",
+					  SceneItemSelectSignal, data);
+		signal_handler_disconnect(sh, "item_deselect",
+					  SceneItemDeselectSignal, data);
+	}
+
+	/* Add signal to new source */
+	signal_handler_t *sh = obs_source_get_signal_handler(currentScene);
+	signal_handler_connect(sh, "item_select", SceneItemSelectSignal, data);
+	signal_handler_connect(sh, "item_deselect", SceneItemDeselectSignal,
+			       data);
+	OBSWeakSourceAutoRelease currentSceneWeak =
+		obs_source_get_weak_source(currentScene);
+	dock->currentScene = currentSceneWeak;
+
+	if (dock->propertiesView) {
+		dock->propertiesView->deleteLater();
+		dock->propertiesView = nullptr;
+	}
+
+	dock->selectedItemsCount = 0;
+	dock->Refresh();
+	pthread_mutex_unlock(&dock->mutex);
 }
 
 void PropertiesDock::Refresh()
 {
+	if (!pthread_mutex_trylock(&mutex)) {
+		blog(LOG_WARNING,
+		     "PropertiesDock::Refresh called while not locked. Returning.");
+		pthread_mutex_unlock(&mutex);
+		return;
+	}
+
 	if (widget)
 		widget->deleteLater();
 
@@ -123,8 +143,13 @@ void PropertiesDock::Refresh()
 	setWidget(widget);
 	setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 
-	layout->addWidget(combobox);
-	layout->addWidget(propertiesView);
+	if (propertiesView) {
+		layout->addWidget(propertiesView);
+	} else {
+		QLabel *label = new QLabel(widget);
+		label->setText(obs_module_text("NoSelection"));
+		layout->addWidget(label);
+	}
 }
 
 PropertiesDock::PropertiesDock(QWidget *parent) : QDockWidget(parent)
@@ -135,10 +160,13 @@ PropertiesDock::PropertiesDock(QWidget *parent) : QDockWidget(parent)
 	setObjectName("PropertiesDock");
 	setFloating(false);
 
-	obs_frontend_add_event_callback(frontendEvent, this);
+	pthread_mutex_init(&mutex, nullptr);
+
+	obs_frontend_add_event_callback(FrontendEvent, this);
 }
 
 PropertiesDock::~PropertiesDock()
 {
-	obs_frontend_remove_event_callback(frontendEvent, this);
+	pthread_mutex_destroy(&mutex);
+	obs_frontend_remove_event_callback(FrontendEvent, this);
 }

@@ -167,6 +167,6 @@ PropertiesDock::PropertiesDock(QWidget *parent) : QDockWidget(parent)
 
 PropertiesDock::~PropertiesDock()
 {
-	pthread_mutex_destroy(&mutex);
 	obs_frontend_remove_event_callback(FrontendEvent, this);
+	pthread_mutex_destroy(&mutex);
 }

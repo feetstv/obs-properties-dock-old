@@ -43,7 +43,6 @@ private:
 	OBSPropertiesView *propertiesView = nullptr;
 
 	OBSWeakSource currentScene;
-	pthread_mutex_t mutex;
 	static void FrontendEvent(enum obs_frontend_event event, void *data);
 	static void SceneItemSelectSignal(void *param, calldata_t *data);
 	static void SceneItemDeselectSignal(void *param, calldata_t *data);

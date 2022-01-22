@@ -31,8 +31,6 @@ void PropertiesDock::SceneItemSelectSignal(void *param, calldata_t *data)
 {
 	PropertiesDock *dock = static_cast<PropertiesDock *>(param);
 
-	pthread_mutex_lock(&dock->mutex);
-
 	dock->selectedItemsCount++;
 
 	OBSSource itemSource = obs_sceneitem_get_source(
@@ -62,21 +60,17 @@ void PropertiesDock::SceneItemSelectSignal(void *param, calldata_t *data)
 		(PropertiesVisualUpdateCb)updateCbWithoutUndo);
 
 	dock->Refresh();
-
-	pthread_mutex_unlock(&dock->mutex);
 }
 
 void PropertiesDock::SceneItemDeselectSignal(void *param, calldata_t *)
 {
 	PropertiesDock *dock = static_cast<PropertiesDock *>(param);
-	pthread_mutex_lock(&dock->mutex);
 
 	dock->selectedItemsCount--;
 	if (dock->propertiesView && dock->selectedItemsCount == 0)
 		dock->propertiesView = nullptr;
 
 	dock->Refresh();
-	pthread_mutex_unlock(&dock->mutex);
 }
 
 void PropertiesDock::FrontendEvent(enum obs_frontend_event event, void *data)
@@ -85,7 +79,6 @@ void PropertiesDock::FrontendEvent(enum obs_frontend_event event, void *data)
 		return;
 
 	PropertiesDock *dock = static_cast<PropertiesDock *>(data);
-	pthread_mutex_lock(&dock->mutex);
 
 	OBSSourceAutoRelease currentScene =
 		obs_frontend_preview_program_mode_active()
@@ -120,18 +113,10 @@ void PropertiesDock::FrontendEvent(enum obs_frontend_event event, void *data)
 
 	dock->selectedItemsCount = 0;
 	dock->Refresh();
-	pthread_mutex_unlock(&dock->mutex);
 }
 
 void PropertiesDock::Refresh()
 {
-	if (!pthread_mutex_trylock(&mutex)) {
-		blog(LOG_WARNING,
-		     "PropertiesDock::Refresh called while not locked. Returning.");
-		pthread_mutex_unlock(&mutex);
-		return;
-	}
-
 	if (widget)
 		widget->deleteLater();
 
@@ -160,13 +145,10 @@ PropertiesDock::PropertiesDock(QWidget *parent) : QDockWidget(parent)
 	setObjectName("PropertiesDock");
 	setFloating(false);
 
-	pthread_mutex_init(&mutex, nullptr);
-
 	obs_frontend_add_event_callback(FrontendEvent, this);
 }
 
 PropertiesDock::~PropertiesDock()
 {
 	obs_frontend_remove_event_callback(FrontendEvent, this);
-	pthread_mutex_destroy(&mutex);
 }

@@ -19,15 +19,11 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #pragma once
 
 #include "obs-classes/properties-view.hpp"
-#include "plugin-macros.generated.h"
-#include "obs-classes-helper-functions.hpp"
 
 #include <obs.hpp>
 #include <obs-module.h>
-#include <obs-frontend-api.h>
 
 #include <QDockWidget>
-#include <QMainWindow>
 #include <QVBoxLayout>
 #include <QLabel>
 
@@ -36,16 +32,9 @@ class PropertiesDock : public QDockWidget {
 
 public:
 	PropertiesDock(QWidget *parent = nullptr);
-	~PropertiesDock();
+	void SetSource(OBSSource source);
 
 private:
 	QWidget *widget = nullptr;
 	OBSPropertiesView *propertiesView = nullptr;
-
-	OBSWeakSource currentScene;
-	static void FrontendEvent(enum obs_frontend_event event, void *data);
-	static void SceneItemSelectSignal(void *param, calldata_t *data);
-	static void SceneItemDeselectSignal(void *param, calldata_t *data);
-	int selectedItemsCount;
-	void Refresh();
 };

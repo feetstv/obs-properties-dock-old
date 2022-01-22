@@ -21,12 +21,14 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <QMainWindow>
 
 #include "properties-dock.hpp"
+#include "transform-dock.hpp"
 #include "plugin-macros.generated.h"
 
 OBS_DECLARE_MODULE()
 OBS_MODULE_USE_DEFAULT_LOCALE(PLUGIN_NAME, "en-US")
 
 PropertiesDock *properties;
+TransformDock *transform;
 
 int selectedItemsCount;
 OBSWeakSourceAutoRelease currentScene;
@@ -48,6 +50,7 @@ void SceneItemSelectSignal(void *, calldata_t *data)
 	OBSSource source = obs_sceneitem_get_source(item);
 
 	properties->SetSource(source);
+	transform->SetSceneItem(item);
 }
 
 void SceneItemDeselectSignal(void *, calldata_t *)
@@ -55,6 +58,7 @@ void SceneItemDeselectSignal(void *, calldata_t *)
 	selectedItemsCount--;
 	if (selectedItemsCount == 0) {
 		properties->SetSource(nullptr);
+		transform->SetSceneItem(nullptr);
 	}
 }
 
@@ -91,13 +95,18 @@ void FrontendEvent(enum obs_frontend_event event, void *)
 	currentScene = currentSceneWeak;
 
 	properties->SetSource(nullptr);
+	transform->SetSceneItem(nullptr);
 }
 
 bool obs_module_load(void)
 {
-	properties = new PropertiesDock(
-		static_cast<QMainWindow *>(obs_frontend_get_main_window()));
+	QMainWindow *main =
+		static_cast<QMainWindow *>(obs_frontend_get_main_window());
+	properties = new PropertiesDock(main);
 	obs_frontend_add_dock(properties);
+	transform = new TransformDock(main);
+	obs_frontend_add_dock(transform);
+
 	obs_frontend_add_event_callback(FrontendEvent, nullptr);
 
 	blog(LOG_INFO, "Loaded successfully. Version %s", PLUGIN_VERSION);

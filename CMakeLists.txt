@@ -23,6 +23,10 @@ target_sources(${CMAKE_PROJECT_NAME}
 		src/plugin-main.cpp
 		src/properties-dock.cpp
 		src/properties-dock.hpp
+		src/transform-dock.cpp
+		src/transform-dock.cpp
+		src/transform-view.cpp
+		src/transform-view.hpp
 		src/obs-classes-helper-functions.hpp
 		src/obs-classes/combobox-ignorewheel.cpp
 		src/obs-classes/combobox-ignorewheel.hpp
@@ -77,7 +81,8 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
 set_target_properties(${CMAKE_PROJECT_NAME} PROPERTIES
 	AUTOMOC ON
 	AUTOUIC ON
-	AUTORCC ON)
+	AUTORCC ON
+	AUTOUIC_SEARCH_PATHS "src/forms")
 
 target_compile_features(${CMAKE_PROJECT_NAME}
 	PRIVATE

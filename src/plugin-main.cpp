@@ -100,6 +100,12 @@ void FrontendEvent(enum obs_frontend_event event, void *)
 
 bool obs_module_load(void)
 {
+	blog(LOG_INFO, "Version %s", PLUGIN_VERSION);
+	blog(LOG_INFO, "Compile time: OBS %s, QT %s", OBS_VERSION,
+	     QT_VERSION_STR);
+	blog(LOG_INFO, "Run time: OBS %s, QT %s", obs_get_version_string(),
+	     qVersion());
+
 	QMainWindow *main =
 		static_cast<QMainWindow *>(obs_frontend_get_main_window());
 	properties = new PropertiesDock(main);
@@ -108,12 +114,6 @@ bool obs_module_load(void)
 	obs_frontend_add_dock(transform);
 
 	obs_frontend_add_event_callback(FrontendEvent, nullptr);
-
-	blog(LOG_INFO, "Loaded successfully. Version %s", PLUGIN_VERSION);
-	blog(LOG_INFO, "Compile time: OBS %s, QT %s", OBS_VERSION,
-	     QT_VERSION_STR);
-	blog(LOG_INFO, "Run time: OBS %s, QT %s", obs_get_version_string(),
-	     qVersion());
 	return true;
 }
 

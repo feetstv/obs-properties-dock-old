@@ -100,8 +100,11 @@ bool obs_module_load(void)
 	obs_frontend_add_dock(properties);
 	obs_frontend_add_event_callback(FrontendEvent, nullptr);
 
-	blog(LOG_INFO, "Properties dock loaded successfully. Version %s",
-	     PLUGIN_VERSION);
+	blog(LOG_INFO, "Loaded successfully. Version %s", PLUGIN_VERSION);
+	blog(LOG_INFO, "Compile time: OBS %s, QT %s", OBS_VERSION,
+	     QT_VERSION_STR);
+	blog(LOG_INFO, "Run time: OBS %s, QT %s", obs_get_version_string(),
+	     qVersion());
 	return true;
 }
 

@@ -37,4 +37,5 @@ public:
 private:
 	QWidget *widget = nullptr;
 	OBSPropertiesView *propertiesView = nullptr;
+	QLayout *ResetWidget();
 };

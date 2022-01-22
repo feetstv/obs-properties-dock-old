@@ -18,7 +18,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 
 #include "properties-dock.hpp"
 
-void PropertiesDock::SetSource(OBSSource source)
+QLayout *PropertiesDock::ResetWidget()
 {
 	if (widget)
 		widget->deleteLater();
@@ -31,8 +31,17 @@ void PropertiesDock::SetSource(OBSSource source)
 	setWidget(widget);
 	setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 
+	return layout;
+}
+
+void PropertiesDock::SetSource(OBSSource source)
+{
 	if (source) {
 		OBSDataAutoRelease settings = obs_source_get_settings(source);
+
+		/* Check if the properties changed, otherwise return early */
+		if (propertiesView && propertiesView->GetSettings() == settings)
+			return;
 
 		auto updateCb = [](void *obj, obs_data_t *old_settings,
 				   obs_data_t *new_settings) {
@@ -55,8 +64,10 @@ void PropertiesDock::SetSource(OBSSource source)
 			(PropertiesUpdateCallback)updateCb,
 			(PropertiesVisualUpdateCb)updateCbWithoutUndo);
 
+		QLayout *layout = ResetWidget();
 		layout->addWidget(propertiesView);
 	} else {
+		QLayout *layout = ResetWidget();
 		QLabel *label = new QLabel(widget);
 		label->setText(obs_module_text("NoSelection"));
 		layout->addWidget(label);

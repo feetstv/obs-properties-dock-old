@@ -94,8 +94,30 @@ void FrontendEvent(enum obs_frontend_event event, void *)
 		obs_source_get_weak_source(currentSceneSource);
 	currentScene = currentSceneWeak;
 
-	properties->SetSource(nullptr);
-	transform->SetSceneItem(nullptr);
+	struct cb_data {
+		int *selectedItemsCount;
+		OBSSceneItem selectedItem;
+	} data;
+	data.selectedItemsCount = &selectedItemsCount;
+	data.selectedItem = nullptr;
+
+	auto cb = [](obs_scene_t *, obs_sceneitem_t *item, void *data) {
+		struct cb_data *cb_data = static_cast<struct cb_data *>(data);
+		if (obs_sceneitem_selected(item)) {
+			cb_data->selectedItemsCount++;
+			/* Always override to get the top-most item */
+			cb_data->selectedItem = item;
+		}
+		return true;
+	};
+
+	obs_scene_enum_items(obs_scene_from_source(currentSceneSource), cb,
+			     &data);
+
+	OBSSceneItem item = data.selectedItem;
+	OBSSource source = obs_sceneitem_get_source(item);
+	properties->SetSource(source);
+	transform->SetSceneItem(item);
 }
 
 bool obs_module_load(void)

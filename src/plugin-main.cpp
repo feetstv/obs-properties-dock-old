@@ -90,7 +90,7 @@ void FrontendEvent(enum obs_frontend_event event, void *)
 			       nullptr);
 	signal_handler_connect(sh, "item_deselect", SceneItemDeselectSignal,
 			       nullptr);
-	OBSWeakSourceAutoRelease currentSceneWeak =
+	OBSWeakSource currentSceneWeak =
 		obs_source_get_weak_source(currentSceneSource);
 	currentScene = currentSceneWeak;
 
@@ -120,4 +120,6 @@ bool obs_module_load(void)
 void obs_module_unload()
 {
 	obs_frontend_remove_event_callback(FrontendEvent, nullptr);
+	/* XXX: This is not good. Why are we releasing an AutoRelease? */
+	obs_weak_source_release(currentScene);
 }

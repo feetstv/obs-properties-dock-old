@@ -8,7 +8,8 @@
 #include <vector>
 #include <memory>
 
-class QFormLayout;
+class QTableWidget;
+class QTableWidgetItem;
 class OBSPropertiesView;
 class QLabel;
 
@@ -108,33 +109,23 @@ private:
 	QWidget *lastWidget = nullptr;
 	bool deferUpdate;
 
-	QWidget *NewWidget(obs_property_t *prop, QWidget *widget,
-			   const char *signal);
+	QWidget *NewWidget(obs_property_t *prop, QWidget *widget, const char *signal);
 
-	QWidget *AddCheckbox(obs_property_t *prop);
-	QWidget *AddText(obs_property_t *prop, QFormLayout *layout,
-			 QLabel *&label);
-	void AddPath(obs_property_t *prop, QFormLayout *layout, QLabel **label);
-	void AddInt(obs_property_t *prop, QFormLayout *layout, QLabel **label);
-	void AddFloat(obs_property_t *prop, QFormLayout *layout,
-		      QLabel **label);
-	QWidget *AddList(obs_property_t *prop, bool &warning);
-	void AddEditableList(obs_property_t *prop, QFormLayout *layout,
-			     QLabel *&label);
-	QWidget *AddButton(obs_property_t *prop);
-	void AddColorInternal(obs_property_t *prop, QFormLayout *layout,
-			      QLabel *&label, bool supportAlpha);
-	void AddColor(obs_property_t *prop, QFormLayout *layout,
-		      QLabel *&label);
-	void AddColorAlpha(obs_property_t *prop, QFormLayout *layout,
-			   QLabel *&label);
-	void AddFont(obs_property_t *prop, QFormLayout *layout, QLabel *&label);
-	void AddFrameRate(obs_property_t *prop, bool &warning,
-			  QFormLayout *layout, QLabel *&label);
+	void AddCheckbox(obs_property_t *prop, QWidget **widget);
+    void AddText(obs_property_t *prop, QWidget **widget, QWidget **auxWidget);
+	void AddPath(obs_property_t *prop, QWidget **widget, QWidget **auxWidget);
+	void AddInt(obs_property_t *prop, QWidget **mainWidget);
+	void AddFloat(obs_property_t *prop, QWidget **mainWidget);
+	void AddList(obs_property_t *prop, QWidget **widget, bool &warning);
+	void AddEditableList(obs_property_t *prop, QWidget **widget, QWidget **auxLayout);
+	void AddButton(obs_property_t *prop, QWidget **widget);
+	void AddColorInternal(obs_property_t *prop, QWidget **widget, QWidget **auxWidget, bool supportAlpha);
+	void AddColor(obs_property_t *prop, QWidget **widget, QWidget **auxWidget);
+	void AddColorAlpha(obs_property_t *prop, QWidget **widget, QWidget **auxWidget);
+	void AddFont(obs_property_t *prop, QWidget **widget, QWidget **auxWidget);
+	void AddFrameRate(obs_property_t *prop, QWidget **widget, bool &warning);
 
-	void AddGroup(obs_property_t *prop, QFormLayout *layout);
-
-	void AddProperty(obs_property_t *property, QFormLayout *layout);
+	void AddProperty(obs_property_t *property, QTableWidget *widget);
 
 	void resizeEvent(QResizeEvent *event) override;
 

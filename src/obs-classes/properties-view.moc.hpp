@@ -4,6 +4,8 @@
 #include <QLabel>
 #include <QSpinBox>
 #include <QStackedWidget>
+#include <QTableWidget>
+#include <QHeaderView>
 #include <QWidget>
 
 #include <obs.h>

@@ -1346,6 +1346,9 @@ void OBSPropertiesView::AddGroup(obs_property_t *prop, QFormLayout *layout)
 
 void OBSPropertiesView::AddProperty(obs_property_t *property, QTableWidget *widget)
 {
+    if (!obs_property_visible(property))
+        return;
+    
     const char *name = obs_property_name(property);
     const char *desc = obs_property_description(property);
     obs_property_type type = obs_property_get_type(property);
@@ -1437,7 +1440,7 @@ void OBSPropertiesView::AddProperty(obs_property_t *property, QTableWidget *widg
         }
     }
     
-    if (!obs_property_enabled(property) || !obs_property_visible(property)) {
+    if (!obs_property_enabled(property)) {
         if (mainWidget) mainWidget->setEnabled(false);
         if (auxWidget) auxWidget->setEnabled(false);
         title->setFlags(title->flags() & (~Qt::ItemIsEnabled));

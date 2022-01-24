@@ -26,6 +26,7 @@ QLayout *PropertiesDock::ResetWidget()
 	widget = new QWidget();
 
 	QVBoxLayout *layout = new QVBoxLayout();
+    layout->setContentsMargins(0, 0, 0, 0);
 	widget->setLayout(layout);
 
 	setWidget(widget);

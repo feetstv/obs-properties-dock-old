@@ -121,6 +121,7 @@ void OBSPropertiesView::RefreshProperties()
 
     // Create tree widget
     QTableWidget *tableWidget = new QTableWidget();
+    tableWidget->setAlternatingRowColors(true);
     tableWidget->setContentsMargins(0, 0, 25, 0);
     tableWidget->setColumnCount(4);
     tableWidget->setSizePolicy(mainPolicy);
@@ -128,7 +129,7 @@ void OBSPropertiesView::RefreshProperties()
     tableWidget->horizontalHeader()->setHidden(true);
     tableWidget->verticalHeader()->setHidden(true);
     // tableWidget->setGridStyle(Qt::PenStyle::NoPen);
-    tableWidget->setStyleSheet("QTableView, QTableView::item:hover { background-color: transparent; }");
+    tableWidget->setStyleSheet("QTableView::item:hover { background: transparent; }");
     tableWidget->setSelectionMode(QAbstractItemView::NoSelection);
     
     QStringList headerNames;
@@ -1400,31 +1401,23 @@ void OBSPropertiesView::AddProperty(obs_property_t *property, QTableWidget *widg
     if (!mainWidget && !auxWidget)
         return;
     
-    if (!obs_property_visible(property))
-            return;
-
-    if (!obs_property_enabled(property) || !obs_property_visible(property)) {
-        if (widget) widget->setEnabled(false);
-        if (auxWidget) auxWidget->setEnabled(false);
-    }
-    
     int row = widget->rowCount();
     widget->insertRow(row);
     
     QTableWidgetItem *title = new QTableWidgetItem();
     title->setText(desc);
     if (warning) {
-        QBrush *brush = new QBrush();
-        brush->setColor(Qt::GlobalColor::red);
-        title->setForeground(*brush);
+        title->setForeground(QBrush(Qt::red));
     }
     
     if (type == OBS_PROPERTY_BOOL || type == OBS_PROPERTY_BUTTON) {
         if (type == OBS_PROPERTY_BOOL) {
             QWidget *hWidget = new QWidget();
             QHBoxLayout *layout = new QHBoxLayout(hWidget);
+            layout->setContentsMargins(0, 0, 0, 0);
             layout->addStretch(); layout->addWidget(auxWidget);
-            widget->setStyleSheet("background-color: transparent;");
+            hWidget->setStyleSheet("background-color: transparent;");
+            widget->setStyleSheet("QCheckBox { background-color: transparent; }");
 
             widget->setCellWidget(row, 0, hWidget);
             widget->setItem(row, 1, title);
@@ -1442,6 +1435,12 @@ void OBSPropertiesView::AddProperty(obs_property_t *property, QTableWidget *widg
         } else {
             widget->setSpan(row, 1, 1, 2);
         }
+    }
+    
+    if (!obs_property_enabled(property) || !obs_property_visible(property)) {
+        if (mainWidget) mainWidget->setEnabled(false);
+        if (auxWidget) auxWidget->setEnabled(false);
+        title->setFlags(title->flags() & (~Qt::ItemIsEnabled));
     }
     
     if (!lastFocused.empty())

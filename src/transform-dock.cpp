@@ -20,29 +20,17 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 
 void TransformDock::SetSceneItem(OBSSceneItem item)
 {
-	if (widget)
-		widget->deleteLater();
-
-	widget = new QWidget();
-
-	QVBoxLayout *layout = new QVBoxLayout();
-    layout->setContentsMargins(0, 0, 0, 0);
-	widget->setLayout(layout);
-
-	setWidget(widget);
-	setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-
 	if (item) {
-		if (transformView)
-			transformView = nullptr;
-
-		transformView = new OBSBasicTransform(item);
-
-		layout->addWidget(transformView);
+        if (transformView) {
+			transformView->SetNewItem(item);
+        } else {
+            transformView = new OBSBasicTransform(item);
+            setWidget(transformView);
+        }
 	} else {
 		QLabel *label = new QLabel(widget);
 		label->setText(obs_module_text("NoSelection"));
-		layout->addWidget(label);
+		setWidget(label);
 	}
 }
 

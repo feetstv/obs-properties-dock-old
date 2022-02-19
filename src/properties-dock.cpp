@@ -18,30 +18,11 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 
 #include "properties-dock.hpp"
 
-QLayout *PropertiesDock::ResetWidget()
-{
-	if (widget)
-		widget->deleteLater();
-
-	widget = new QWidget();
-
-	QVBoxLayout *layout = new QVBoxLayout();
-    layout->setContentsMargins(0, 0, 0, 0);
-	widget->setLayout(layout);
-
-	setWidget(widget);
-	setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-
-	return layout;
-}
-
 void PropertiesDock::SetSource(OBSSource source)
 {
 	if (source) {
-		OBSDataAutoRelease settings = obs_source_get_settings(source);
-
 		/* Check if the properties changed, otherwise return early */
-		if (propertiesView && propertiesView->GetSettings() == settings)
+		if (propertiesView && propertiesView->IsObject(source))
 			return;
 
 		auto updateCb = [](void *obj, obs_data_t *old_settings,
@@ -58,27 +39,24 @@ void PropertiesDock::SetSource(OBSSource source)
 
 		if (propertiesView)
 			propertiesView = nullptr;
-
+        
+        OBSDataAutoRelease settings = obs_source_get_settings(source);
 		propertiesView = new OBSPropertiesView(
 			settings.Get(), source,
 			(PropertiesReloadCallback)obs_source_properties,
 			(PropertiesUpdateCallback)updateCb,
 			(PropertiesVisualUpdateCb)updateCbWithoutUndo);
 
-		QLayout *layout = ResetWidget();
-		layout->addWidget(propertiesView);
+		setWidget(propertiesView);
 	} else {
-		QLayout *layout = ResetWidget();
 		QLabel *label = new QLabel(widget);
 		label->setText(obs_module_text("NoSelection"));
-		layout->addWidget(label);
 	}
 }
 
 PropertiesDock::PropertiesDock(QWidget *parent) : QDockWidget(parent)
 {
-	setFeatures(DockWidgetMovable | DockWidgetFloatable |
-		    DockWidgetClosable);
+	setFeatures(DockWidgetMovable | DockWidgetFloatable | DockWidgetClosable);
 	setWindowTitle(obs_module_text("PropertiesDock.Title"));
 	setObjectName("PropertiesDock");
 	setFloating(false);

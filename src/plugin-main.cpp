@@ -30,23 +30,15 @@ OBS_MODULE_USE_DEFAULT_LOCALE(PLUGIN_NAME, "en-US")
 PropertiesDock *properties;
 TransformDock *transform;
 
+OBSSignal selectSignal;
+OBSSignal deselectSignal;
 int selectedItemsCount;
-OBSWeakSourceAutoRelease currentScene;
-
-/* This is stolen straight from obs-websocket */
-template<typename T>
-T *calldata_get_pointer(const calldata_t *data, const char *name)
-{
-	void *ptr = nullptr;
-	calldata_get_ptr(data, name, &ptr);
-	return reinterpret_cast<T *>(ptr);
-}
 
 void SceneItemSelectSignal(void *, calldata_t *data)
 {
 	selectedItemsCount++;
 
-	OBSSceneItem item = calldata_get_pointer<obs_sceneitem_t>(data, "item");
+    OBSSceneItem item = (obs_sceneitem_t *)calldata_ptr(data, "item");
 	OBSSource source = obs_sceneitem_get_source(item);
 
 	properties->SetSource(source);
@@ -72,27 +64,14 @@ void FrontendEvent(enum obs_frontend_event event, void *)
 			? obs_frontend_get_current_preview_scene()
 			: obs_frontend_get_current_scene();
 
-	/* Remove signal from old source */
-	if (currentScene && !obs_weak_source_expired(currentScene)) {
-		OBSSourceAutoRelease oldScene =
-			obs_weak_source_get_source(currentScene);
-		signal_handler_t *sh = obs_source_get_signal_handler(oldScene);
-		signal_handler_disconnect(sh, "item_select",
-					  SceneItemSelectSignal, nullptr);
-		signal_handler_disconnect(sh, "item_deselect",
-					  SceneItemDeselectSignal, nullptr);
-	}
+    selectSignal.Disconnect();
+    deselectSignal.Disconnect();
 
-	/* Add signal to new source */
+	/* Connect signal to new source */
 	signal_handler_t *sh =
 		obs_source_get_signal_handler(currentSceneSource);
-	signal_handler_connect(sh, "item_select", SceneItemSelectSignal,
-			       nullptr);
-	signal_handler_connect(sh, "item_deselect", SceneItemDeselectSignal,
-			       nullptr);
-	OBSWeakSource currentSceneWeak =
-		obs_source_get_weak_source(currentSceneSource);
-	currentScene = currentSceneWeak;
+    selectSignal.Connect(sh, "item_select", SceneItemSelectSignal, nullptr);
+    deselectSignal.Connect(sh, "item_deselect", SceneItemDeselectSignal, nullptr);
 
 	struct cb_data {
 		int *selectedItemsCount;
@@ -131,8 +110,9 @@ bool obs_module_load(void)
 	QMainWindow *main =
 		static_cast<QMainWindow *>(obs_frontend_get_main_window());
 	properties = new PropertiesDock(main);
-	obs_frontend_add_dock(properties);
 	transform = new TransformDock(main);
+    
+    obs_frontend_add_dock(properties);
 	obs_frontend_add_dock(transform);
 
 	obs_frontend_add_event_callback(FrontendEvent, nullptr);
@@ -142,6 +122,6 @@ bool obs_module_load(void)
 void obs_module_unload()
 {
 	obs_frontend_remove_event_callback(FrontendEvent, nullptr);
-	/* XXX: This is not good. Why are we releasing an AutoRelease? */
-	obs_weak_source_release(currentScene);
+    selectSignal.Disconnect();
+    deselectSignal.Disconnect();
 }

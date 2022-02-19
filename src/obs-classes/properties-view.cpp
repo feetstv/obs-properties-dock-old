@@ -102,8 +102,10 @@ Q_DECLARE_METATYPE(media_frames_per_second);
 
 void OBSPropertiesView::ReloadProperties()
 {
-    if (obj) {
-        properties.reset(reloadCallback(obj));
+    if (weakObj) {
+        OBSObject obj = GetObject();
+        if (obj)
+            properties.reset(reloadCallback(obj.Get()))
     } else {
         properties.reset(reloadCallback((void *)type.c_str()));
         obs_properties_apply_settings(properties.get(), settings);
@@ -200,21 +202,21 @@ void OBSPropertiesView::GetScrollPos(int &h, int &v)
         v = scroll->value();
 }
 
-OBSPropertiesView::OBSPropertiesView(OBSData settings_, void *obj_,
+OBSPropertiesView::OBSPropertiesView(OBSData settings_, void *obj,
                                      PropertiesReloadCallback reloadCallback,
                                      PropertiesUpdateCallback callback_,
                                      PropertiesVisualUpdateCb cb_, int minSize_)
 : VScrollArea(nullptr),
 properties(nullptr, obs_properties_destroy),
 settings(settings_),
-obj(obj_),
+weakObj(obs_object_get_weak_object((obs_object_t *)obj)),
 reloadCallback(reloadCallback),
 callback(callback_),
 cb(cb_),
 minSize(minSize_)
 {
     setFrameShape(QFrame::NoFrame);
-    ReloadProperties();
+    QMetaObject::InvokeMetaMethod(this, "ReloadProperties", Qt::QueuedConnection);
 }
 
 OBSPropertiesView::OBSPropertiesView(OBSData settings_, const char *type_,
@@ -228,7 +230,7 @@ reloadCallback(reloadCallback_),
 minSize(minSize_)
 {
     setFrameShape(QFrame::NoFrame);
-    ReloadProperties();
+    QMetaObject::InvokeMetaMethod(this, "ReloadProperties", Qt::QueuedConnection);
 }
 
 void OBSPropertiesView::resizeEvent(QResizeEvent *event)
@@ -1012,21 +1014,24 @@ void OBSPropertiesView::AddProperty(obs_property_t *property, QTableWidget *widg
     }
     
     if (type == OBS_PROPERTY_BOOL || type == OBS_PROPERTY_BUTTON) {
+        QWidget *hWidget = new QWidget();
+        QHBoxLayout *layout = new QHBoxLayout(hWidget);
+        
         if (type == OBS_PROPERTY_BOOL) {
-            QWidget *hWidget = new QWidget();
-            QHBoxLayout *layout = new QHBoxLayout(hWidget);
             layout->setContentsMargins(0, 0, 0, 0);
             layout->addStretch(); layout->addWidget(auxWidget);
-            hWidget->setStyleSheet("background-color: transparent;");
-            widget->setStyleSheet("QCheckBox { background-color: transparent; }");
+            widget->setStyleSheet("QCheckBox { background: transparent; }");
             
-            widget->setCellWidget(row, 0, hWidget);
             widget->setItem(row, 1, title);
             widget->setSpan(row, 1, 1, 2);
         } else if (type == OBS_PROPERTY_BUTTON) {
-            widget->setCellWidget(row, 0, mainWidget);
+            layout->setContentsMargins(4, 4, 4, 4);
+            mainWidget->setStyleSheet("");
+            layout->addWidget(mainWidget);
             widget->setSpan(row, 0, 1, 3);
         }
+        
+        widget->setCellWidget(row, 0, hWidget);
     } else {
         title->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
         widget->setItem(row, 0, title);
@@ -1644,10 +1649,9 @@ void WidgetInfo::ControlChanged()
         update_timer = new QTimer;
         connect(update_timer, &QTimer::timeout,
                 [this, &ru = recently_updated]() {
-            if (view->callback && !view->deferUpdate) {
-                view->callback(view->obj,
-                               old_settings_cache,
-                               view->settings);
+            OBSObject obj = view->GetObject();
+            if (obj && view->callback && !view->deferUpdate) {
+                view->callback(obj, old_settings_cache, view->settings);
             }
             
             ru = false;
@@ -1663,8 +1667,11 @@ void WidgetInfo::ControlChanged()
         blog(LOG_DEBUG, "No update timer or no callback!");
     }
     
-    if (view->cb && !view->deferUpdate)
-        view->cb(view->obj, view->settings);
+    if (view->cb && !view->deferUpdate) {
+        OBSObject obj = view->GetObject();
+        if (obj)
+            view->cb(obj, view->settings);
+    }
     
     view->SignalChanged();
     
@@ -1942,7 +1949,7 @@ void WidgetInfo::ButtonClicked()
         }
         return;
     }
-    if (obs_property_button_clicked(property, view->obj)) {
+    if (obs_property_button_clicked(property, view->GetObject())) {
         QMetaObject::invokeMethod(view, "RefreshProperties",
                                   Qt::QueuedConnection);
     }

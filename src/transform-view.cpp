@@ -35,6 +35,12 @@ OBSBasicTransform::OBSBasicTransform(OBSSceneItem item_)
 				this);
 }
 
+void OBSBasicTransform::SetNewItem(OBSSceneItem item_)
+ {
+     item = item_;
+     LoadValues();
+ }
+
 /*------------------------------------------------------------*/
 /* From here on mostly copied from window-basic-transform.cpp */
 /*------------------------------------------------------------*/

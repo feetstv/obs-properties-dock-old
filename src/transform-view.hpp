@@ -31,6 +31,7 @@ class OBSBasicTransform : public QDialog {
 public:
 	std::unique_ptr<Ui::OBSBasicTransform> ui;
 	OBSBasicTransform(OBSSceneItem item);
+    void SetNewItem(OBSSceneItem item);
 
 private:
 	OBSSceneItem item;
